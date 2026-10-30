@@ -1,0 +1,82 @@
+# Local lakehouse: Airflow 3 (LocalExecutor) + Postgres metadata DB + MinIO (S3 API).
+#   docker compose up -d --build      ->  Airflow UI http://localhost:8080
+#                                         MinIO console http://localhost:9001 (minioadmin / minioadmin)
+# Point LAKE_URI at a real S3 bucket (and drop S3_ENDPOINT_URL) to run against AWS.
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true" # local dev only: no login screen
+  LAKE_URI: s3://nyc-taxi-lake
+  S3_ENDPOINT_URL: http://minio:9000
+  AWS_ACCESS_KEY_ID: minioadmin
+  AWS_SECRET_ACCESS_KEY: minioadmin
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+  SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY:-3g}
+  DBT_PROJECT_DIR: /opt/airflow/dbt/taxi
+  DBT_TARGET: s3
+  DBT_LAKE_PATH: s3://nyc-taxi-lake
+  DBT_DUCKDB_PATH: /opt/airflow/warehouse/taxi.duckdb
+  DBT_S3_ENDPOINT: minio:9000
+  DBT_S3_URL_STYLE: path
+  DBT_S3_USE_SSL: "false"
+  DBT_TARGET_PATH: /tmp/dbt-target # keep build artifacts out of the bind-mounted project
+  DBT_LOG_PATH: /tmp/dbt-logs
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [minio-data:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >
+      sh -c "mc alias set local http://minio:9000 minioadmin minioadmin &&
+             mc mb --ignore-existing local/nyc-taxi-lake"
+
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/airflow.Dockerfile
+    image: nyc-taxi-airflow:latest
+    command: standalone
+    environment: *airflow-env
+    ports: ["8080:8080"]
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./dbt:/opt/airflow/dbt
+      - warehouse:/opt/airflow/warehouse
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
+volumes:
+  postgres-data:
+  minio-data:
+  warehouse:

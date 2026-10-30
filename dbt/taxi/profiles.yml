@@ -1,0 +1,20 @@
+taxi:
+  target: "{{ env_var('DBT_TARGET', 'local') }}"
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '../../warehouse/taxi.duckdb') }}"
+      threads: 4
+    s3:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '/opt/airflow/warehouse/taxi.duckdb') }}"
+      threads: 4
+      extensions: [httpfs]
+      settings:
+        s3_region: "{{ env_var('AWS_REGION', 'us-east-1') }}"
+        s3_access_key_id: "{{ env_var('AWS_ACCESS_KEY_ID', '') }}"
+        s3_secret_access_key: "{{ env_var('AWS_SECRET_ACCESS_KEY', '') }}"
+        # MinIO: host:port without scheme, path-style URLs, plain HTTP
+        s3_endpoint: "{{ env_var('DBT_S3_ENDPOINT', 's3.amazonaws.com') }}"
+        s3_url_style: "{{ env_var('DBT_S3_URL_STYLE', 'vhost') }}"
+        s3_use_ssl: "{{ env_var('DBT_S3_USE_SSL', 'true') }}"

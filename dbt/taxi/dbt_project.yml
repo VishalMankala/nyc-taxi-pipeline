@@ -1,0 +1,23 @@
+name: taxi
+version: "1.0.0"
+config-version: 2
+profile: taxi
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Root of the lake written by the Spark pipeline (local folder or s3://bucket)
+  lake_path: "{{ env_var('DBT_LAKE_PATH', '../../lake') }}"
+  # Set by Airflow (YYYY-MM) to rebuild a single month incrementally; empty = all months
+  run_month: ""
+
+models:
+  taxi:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

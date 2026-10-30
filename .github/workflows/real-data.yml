@@ -1,0 +1,51 @@
+name: Real TLC data run
+
+# Run from the Actions tab: processes real TLC months end to end, runs the CSV vs
+# Parquet benchmark, and uploads manifests + benchmark results as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: First month (YYYY-MM)
+        default: "2024-01"
+      end:
+        description: Last month (YYYY-MM)
+        default: "2024-03"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SPARK_DRIVER_MEMORY: 5g
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: pip install -e ".[dev]"
+      - name: Backfill months
+        run: taxi-pipeline backfill --start "${{ inputs.start }}" --end "${{ inputs.end }}" | tee backfill.txt
+      - name: dbt marts on the real data
+        run: make dbt
+      - name: CSV vs Parquet benchmark
+        run: make benchmark MONTH=${{ inputs.start }}
+      - name: Collect results
+        run: |
+          mkdir -p results
+          cp -r lake/_manifests results/manifests
+          cp benchmarks/results.md benchmarks/results.json backfill.txt results/
+          rm -rf results/manifests/yellow_trips/_staging
+          {
+            echo "## Backfill"; echo '```'; cat backfill.txt; echo '```'
+            cat benchmarks/results.md
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: real-data-results
+          path: results/
