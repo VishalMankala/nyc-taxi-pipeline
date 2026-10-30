@@ -43,16 +43,24 @@ flowchart LR
 
 ## Results
 
-> Measured on real TLC data with the **Real TLC data run** workflow (Actions tab → *Run workflow*).
-> Numbers will be filled in from that run's artifact.
+Real TLC yellow taxi data, Jan–Mar 2024, run end to end by the **Real TLC data run** workflow on a standard
+GitHub Actions runner.
 
 | Metric | Value |
 |---|---|
-| Months processed | _pending real run_ |
-| Raw rows → curated rows | _pending_ |
-| Rows quarantined (top reasons) | _pending_ |
-| CSV vs Parquet: storage | _pending_ |
-| CSV vs Parquet: median query speedup (DuckDB) | _pending_ |
+| Months processed | 3 (2024-01 → 2024-03) |
+| Trips published to the curated lake | **9,179,196** (2,859,388 · 2,891,567 · 3,428,241) |
+| Rows removed by quality rules + dedup (Jan 2024) | 105,236 of 2,964,624 raw rows (**3.5%**) |
+| Pipeline time per month (stage → audit → publish) | 37–47 s |
+| Storage, one month: CSV vs Parquet | 323 MB vs 50 MB (**6.5x smaller**) |
+| Query time, CSV vs Parquet (DuckDB, median of 5 warm runs) | **31.9x faster** median (10.7x–76.6x across 4 queries) |
+
+| Benchmark query | CSV (s) | Parquet (s) | Speedup |
+|---|---:|---:|---:|
+| daily_revenue | 0.4785 | 0.0343 | 14.0x |
+| top_pickup_zones | 0.348 | 0.007 | 49.7x |
+| card_tip_rate_by_hour | 0.4498 | 0.0421 | 10.7x |
+| long_trips_count | 0.3835 | 0.005 | 76.6x |
 
 ## Quickstart
 
