@@ -1,7 +1,7 @@
 """Runtime configuration, read from environment variables.
 
-The same code runs against a local folder (tests, laptop) or an S3 / MinIO bucket
-(Docker Compose, AWS). Only LAKE_URI changes.
+The same code runs against a local folder (tests, laptop) or an S3 bucket: AWS, or a local
+S3-compatible endpoint in Docker Compose. Only LAKE_URI changes.
 """
 
 from __future__ import annotations

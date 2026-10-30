@@ -1,6 +1,6 @@
-# Local lakehouse: Airflow 3 (LocalExecutor) + Postgres metadata DB + MinIO (S3 API).
+# Local lakehouse: Airflow 3 (LocalExecutor) + Postgres metadata DB + a local S3 endpoint (moto).
 #   docker compose up -d --build      ->  Airflow UI http://localhost:8080
-#                                         MinIO console http://localhost:9001 (minioadmin / minioadmin)
+#                                         S3 endpoint http://localhost:9000 (any access key works)
 # Point LAKE_URI at a real S3 bucket (and drop S3_ENDPOINT_URL) to run against AWS.
 
 x-airflow-env: &airflow-env
@@ -10,9 +10,9 @@ x-airflow-env: &airflow-env
   AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
   AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true" # local dev only: no login screen
   LAKE_URI: s3://nyc-taxi-lake
-  S3_ENDPOINT_URL: http://minio:9000
-  AWS_ACCESS_KEY_ID: minioadmin
-  AWS_SECRET_ACCESS_KEY: minioadmin
+  S3_ENDPOINT_URL: http://s3:9000
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
   AWS_REGION: us-east-1
   AWS_DEFAULT_REGION: us-east-1
   SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY:-3g}
@@ -20,7 +20,7 @@ x-airflow-env: &airflow-env
   DBT_TARGET: s3
   DBT_LAKE_PATH: s3://nyc-taxi-lake
   DBT_DUCKDB_PATH: /opt/airflow/warehouse/taxi.duckdb
-  DBT_S3_ENDPOINT: minio:9000
+  DBT_S3_ENDPOINT: s3:9000
   DBT_S3_URL_STYLE: path
   DBT_S3_USE_SSL: "false"
   DBT_TARGET_PATH: /tmp/dbt-target # keep build artifacts out of the bind-mounted project
@@ -39,18 +39,10 @@ services:
       interval: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z  # pinned: MinIO stopped publishing new images
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["9000:9000", "9001:9001"]
-    volumes: [minio-data:/data]
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      retries: 10
+  s3:
+    build: { context: docker, dockerfile: s3.Dockerfile }
+    image: local-s3:latest
+    ports: ["9000:9000"]
 
   airflow:
     build:
@@ -66,9 +58,8 @@ services:
       - warehouse:/opt/airflow/warehouse
     depends_on:
       postgres: { condition: service_healthy }
-      minio: { condition: service_healthy }
+      s3: { condition: service_healthy }
 
 volumes:
   postgres-data:
-  minio-data:
   warehouse:

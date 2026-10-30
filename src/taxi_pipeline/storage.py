@@ -32,12 +32,12 @@ class Storage:
             import boto3
 
             self._s3 = boto3.client("s3", endpoint_url=self.settings.s3_endpoint_url)
-            if self.settings.s3_endpoint_url:  # local MinIO: create the bucket on first use
+            if self.settings.s3_endpoint_url:  # local S3 endpoint: create the bucket on first use
                 self.ensure_bucket(self._s3)
         return self._s3
 
     def ensure_bucket(self, client) -> None:
-        """Create the bucket if it is missing. Idempotent; used for local S3 (MinIO) only."""
+        """Create the bucket if it is missing. Idempotent; used for local S3 endpoints only."""
         from botocore.exceptions import ClientError
 
         try:

@@ -1,4 +1,4 @@
-"""SparkSession factory with S3 / MinIO support."""
+"""SparkSession factory with S3 support (AWS or a local endpoint)."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def get_spark(settings: Settings | None = None, app_name: str = "nyc-taxi-pipeli
                 os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")),
             )
         )
-        if settings.s3_endpoint_url:  # MinIO / LocalStack
+        if settings.s3_endpoint_url:  # local S3-compatible endpoint (moto, LocalStack, ...)
             builder = (
                 builder.config("spark.hadoop.fs.s3a.endpoint", settings.s3_endpoint_url)
                 .config("spark.hadoop.fs.s3a.path.style.access", "true")

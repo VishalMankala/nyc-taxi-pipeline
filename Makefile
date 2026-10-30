@@ -29,7 +29,7 @@ dbt:
 benchmark:          ## CSV vs Parquet on the raw month
 	taxi-pipeline benchmark --parquet lake/raw/yellow/year=$(word 1,$(subst -, ,$(MONTH)))/month=$(word 2,$(subst -, ,$(MONTH)))/yellow_tripdata_$(MONTH).parquet
 
-up:                 ## Airflow + MinIO + Postgres in Docker
+up:                 ## Airflow + Postgres + local S3 in Docker
 	docker compose up -d --build
 
 down:

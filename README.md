@@ -80,15 +80,15 @@ make benchmark MONTH=2024-01   # writes benchmarks/results.md
 cat lake/_manifests/yellow_trips/2024-01.json
 ```
 
-**3. Full stack in Docker: Airflow 3 + Postgres + MinIO (S3).**
+**3. Full stack in Docker: Airflow 3 + Postgres + a local S3 endpoint.**
 
 ```bash
 docker compose up -d --build
 # Airflow UI: http://localhost:8080  ->  unpause nyc_taxi_monthly  ->  Trigger with {"month": "2024-01"}
-# MinIO console: http://localhost:9001 (minioadmin / minioadmin)
+# Local S3 (moto server) at http://localhost:9000, in-memory: data lasts while the container runs
 ```
 
-To run against **AWS S3** instead of MinIO, set `LAKE_URI=s3://<your-bucket>`, remove `S3_ENDPOINT_URL`,
+To run against **AWS S3** instead of the local endpoint, set `LAKE_URI=s3://<your-bucket>`, remove `S3_ENDPOINT_URL`,
 and provide AWS credentials. No code changes are needed.
 
 ## Data-quality gate (22 checks)
@@ -121,7 +121,7 @@ mart trip counts must equal the rows in the lake.
   failure modes (HTML error page, unpublished month), idempotent re-runs, and failed audits blocking publish.
 - **DAG integrity tests** against real Airflow 3.1.
 - **CI** (GitHub Actions) has three jobs: lint + tests + two-month end-to-end run + `dbt build`; Airflow DAG
-  checks; and a **Docker job that builds the image and runs the whole pipeline against MinIO over S3**.
+  checks; and a **Docker job that builds the image and runs the whole pipeline against a local S3 endpoint**.
 
 ## Repository layout
 
@@ -135,7 +135,7 @@ src/taxi_pipeline/
   benchmark.py                CSV vs Parquet benchmark (DuckDB)
   sample_data.py              synthetic TLC-shaped data with planted defects
 dbt/taxi/                     staging view, 4 marts, 20 tests
-docker/ docker-compose.yml    Airflow + Postgres + MinIO
+docker/ docker-compose.yml    Airflow + Postgres + local S3 (moto)
 docs/DESIGN.md                design decisions and trade-offs
 ```
 

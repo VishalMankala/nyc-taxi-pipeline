@@ -48,13 +48,13 @@ jobs:
       - run: pytest tests/test_dag.py
 
   docker-e2e:
-    name: Docker stack against MinIO (S3)
+    name: Docker stack against local S3
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v7
-      - run: docker compose build airflow
-      - run: docker compose up -d --wait postgres minio
+      - run: docker compose build airflow s3
+      - run: docker compose up -d --wait postgres s3
       - name: Seed, run Write-Audit-Publish on S3, build dbt marts from S3
         run: |
           docker compose run --rm airflow bash -c "
