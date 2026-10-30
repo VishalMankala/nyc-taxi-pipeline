@@ -71,3 +71,27 @@ def test_benchmark_produces_report(tmp_path):
     assert summary["rows"] == 200
     assert len(summary["queries"]) == 4
     assert (tmp_path / "bench" / "results.md").exists()
+
+
+class FakeS3:
+    def __init__(self, exists: bool):
+        self.exists, self.created = exists, []
+
+    def head_bucket(self, Bucket):
+        from botocore.exceptions import ClientError
+
+        if not self.exists:
+            raise ClientError({"Error": {"Code": "404"}}, "HeadBucket")
+
+    def create_bucket(self, Bucket):
+        self.created.append(Bucket)
+
+
+@pytest.mark.parametrize("exists", [True, False])
+def test_ensure_bucket_creates_missing_bucket_only(monkeypatch, exists):
+    monkeypatch.setenv("LAKE_URI", "s3://nyc-taxi-lake")
+    from taxi_pipeline.config import Settings
+
+    fake = FakeS3(exists)
+    Storage(Settings()).ensure_bucket(fake)
+    assert fake.created == ([] if exists else ["nyc-taxi-lake"])

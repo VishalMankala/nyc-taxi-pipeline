@@ -32,7 +32,25 @@ class Storage:
             import boto3
 
             self._s3 = boto3.client("s3", endpoint_url=self.settings.s3_endpoint_url)
+            if self.settings.s3_endpoint_url:  # local MinIO: create the bucket on first use
+                self.ensure_bucket(self._s3)
         return self._s3
+
+    def ensure_bucket(self, client) -> None:
+        """Create the bucket if it is missing. Idempotent; used for local S3 (MinIO) only."""
+        from botocore.exceptions import ClientError
+
+        try:
+            client.head_bucket(Bucket=self.bucket)
+        except ClientError as err:
+            if err.response["Error"]["Code"] not in ("404", "NoSuchBucket", "NotFound"):
+                raise
+            try:
+                client.create_bucket(Bucket=self.bucket)
+            except ClientError as create_err:  # another task created it first
+                if create_err.response["Error"]["Code"] not in ("BucketAlreadyOwnedByYou",
+                                                                "BucketAlreadyExists"):
+                    raise
 
     def _s3_key(self, key: str) -> str:
         return f"{self.prefix}/{key}" if self.prefix else key

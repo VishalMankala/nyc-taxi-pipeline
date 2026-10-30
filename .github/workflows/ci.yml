@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker compose build airflow
-      - run: docker compose up -d postgres minio minio-init
+      - run: docker compose up -d --wait postgres minio
       - name: Seed, run Write-Audit-Publish on S3, build dbt marts from S3
         run: |
           docker compose run --rm airflow bash -c "
